@@ -11,52 +11,60 @@ use Validator;
 class AuthController extends Controller
 {
     //
-
-    public function registration(Request $request)
-    {
-        $validation = Validator::make($request->all(),[
-            'name'=>'required',
-            'email'=>'required|email',
-            'password'=>'required',
-            'confirm_password'=>'required|same:password',
-
-
+    public function registration(Request $request){
+	
+        $request->validate([
+        'name'=>'required|string',
+        'email'=>'required|string|email|unique:users',
+        'password'=>'required|string|confirmed'
+    
         ]);
-
-        if($validation->fails()){
-            return response()-> json($validation->errors(),202);
-        }
-        $allData = $request->all();
-        $allData['password']= bcrypt($allData['password']);
-
-        $user = User::create($allData);
-
-        $resArray = [];
-        $resArray['token']=$user -> createToken('api-application')->accessToken;
-        $resArray['name']=$user->name;
-
-        return response()-> json($resArray,200);
-
+    
+        $user = new User([
+        'name'=>$request->name,
+        'email'=>$request->email,
+        'password'=>bcrypt($request->password)
+    
+        ]);
+    
+    
+        $user->save();
+    
+        return response()->json([
+        "message"=> "User has been registered successfully"
+        ],201);
+    
     }
+    
 
-    public function login(Request $request)
-    {
-        if(Auth::attempt([
-            'email'=>$request->email,
-            'password'=>$request->password
-        ])){
-
-            $user = Auth::user();
-            $resArray = [];
-            $resArray['token']=$user-> createToken('api-application')->accessToken;
-            $resArray['name']=$user->name;
-
-            return response()-> json($resArray,200);
-
-        } else{
-            return response()->json(['error'=>'Unauthorized Access'],203);
-        }
-
+    public function login(Request $request){
+	
+        $request -> validate([
+    
+        'email'=>'required|string',
+        'password'=>'required|string'
+    
+        ]);
+    
+        $credentials = request(['email','password']);
+    
+        if(!Auth::attempt($credentials)){
+    
+        return response()->json([
+    
+        'message'=>'Invalid email or password'
+        ], 401);
+    }
+    
+        $user = $request->user();
+    
+        $token = $user-> createToken('Access Token');
+    
+        $user->access_token = $token->accessToken;
+    
+        return response()->json([
+        "user"=>$user],200);
+    
     }
 
     public function logout(Request $request){
